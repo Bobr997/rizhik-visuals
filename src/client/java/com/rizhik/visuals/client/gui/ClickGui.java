@@ -1,8 +1,10 @@
 package com.rizhik.visuals.client.gui;
 
 import com.rizhik.visuals.client.module.Category;
+import com.rizhik.visuals.client.module.ColorSetting;
 import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleManager;
+import com.rizhik.visuals.client.module.Setting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -14,7 +16,8 @@ import java.util.List;
 import java.util.Set;
 
 public class ClickGui extends Screen {
-    private static final int PW = 440, PH = 260, SIDE = 100, PAD = 10, CARD_H = 38, HEAD = 34;
+    private static final int PW = 440, PH = 260, SIDE = 100, PAD = 10, CARD_H = 38, HEAD = 34, SET_H = 18;
+    private static final int BAR_W = 56;
     private static final int ORANGE = 0xFFFF7B1D;
     private static final Set<Module> EXPANDED = new HashSet<>();
 
@@ -40,10 +43,19 @@ public class ClickGui extends Screen {
     private int cardX(int col) { return px() + SIDE + PAD + col * (cardW() + PAD); }
     private int sideY(int i) { return py() + 44 + i * 26; }
 
+    private int descLines(Module m, int cw) {
+        return font.split(Component.literal(m.description), cw - 16).size();
+    }
+
     private int cardHeight(Module m, int cw) {
         if (!EXPANDED.contains(m)) return CARD_H;
-        int lines = font.split(Component.literal(m.description), cw - 16).size();
-        return Math.max(CARD_H, 22 + lines * 10 + 8);
+        int h = 22 + descLines(m, cw) * 10 + 6;
+        if (!m.settings.isEmpty()) h += m.settings.size() * SET_H + 4;
+        return Math.max(CARD_H, h);
+    }
+
+    private int settingsTop(Card c) {
+        return c.y() + 22 + descLines(c.module(), c.w()) * 10 + 6;
     }
 
     private List<Card> layout() {
@@ -73,6 +85,41 @@ public class ClickGui extends Screen {
             int dy = up ? (3 - i) : i;
             g.fill(cx - 3 + i, cy + dy, cx - 2 + i, cy + dy + 1, color);
             g.fill(cx + 3 - i, cy + dy, cx + 4 - i, cy + dy + 1, color);
+        }
+    }
+
+    private void drawSetting(GuiGraphics g, Setting<?> s, Card c, int ry) {
+        g.drawString(font, s.name, c.x() + 8, ry + 5, 0xFFCCCCCC);
+        int barX = c.x() + c.w() - 8 - BAR_W;
+        Object v = s.get();
+        if (s instanceof ColorSetting cs) {
+            for (int k = 0; k < BAR_W; k++) {
+                g.fill(barX + k, ry + 6, barX + k + 1, ry + 12, ColorSetting.hsv(k / (float) BAR_W, 0.85f, 1f));
+            }
+            int kx = barX + (int) (cs.get() * (BAR_W - 2));
+            g.fill(kx, ry + 4, kx + 2, ry + 14, 0xFFFFFFFF);
+        } else if (v instanceof Boolean b) {
+            int tx = c.x() + c.w() - 8 - 24;
+            Render.roundedRect(g, tx, ry + 3, 24, 12, 6, b ? ORANGE : 0xFF3A3A42);
+            Render.roundedRect(g, b ? tx + 13 : tx + 1, ry + 4, 10, 10, 5, 0xFFFFFFFF);
+        } else if (v instanceof Double d) {
+            double f = (d - s.min) / (s.max - s.min);
+            Render.roundedRect(g, barX, ry + 7, BAR_W, 4, 2, 0xFF3A3A42);
+            Render.roundedRect(g, barX, ry + 7, Math.max(4, (int) (BAR_W * f)), 4, 2, ORANGE);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void clickSetting(Setting<?> s, double mx, Card c) {
+        int barX = c.x() + c.w() - 8 - BAR_W;
+        double f = Math.max(0, Math.min(1, (mx - barX) / BAR_W));
+        Object v = s.get();
+        if (s instanceof ColorSetting cs) {
+            if (mx >= barX - 4) cs.set((float) f);
+        } else if (v instanceof Boolean b) {
+            ((Setting<Boolean>) s).set(!b);
+        } else if (v instanceof Double) {
+            if (mx >= barX - 4) ((Setting<Double>) s).set(s.min + (s.max - s.min) * f);
         }
     }
 
@@ -118,6 +165,10 @@ public class ClickGui extends Screen {
                     g.drawString(font, line, c.x() + 8, ly, 0xFF8A8A93);
                     ly += 10;
                 }
+                int sy0 = settingsTop(c);
+                for (int k = 0; k < m.settings.size(); k++) {
+                    drawSetting(g, m.settings.get(k), c, sy0 + k * SET_H);
+                }
             } else {
                 g.drawString(font, font.plainSubstrByWidth(m.description, c.w() - 60),
                         c.x() + 8, c.y() + 22, 0xFF8A8A93);
@@ -159,6 +210,13 @@ public class ClickGui extends Screen {
                             if (!EXPANDED.remove(c.module())) EXPANDED.add(c.module());
                         } else {
                             c.module().toggle();
+                        }
+                    } else if (EXPANDED.contains(c.module())) {
+                        int sy0 = settingsTop(c);
+                        List<Setting<?>> list = c.module().settings;
+                        for (int k = 0; k < list.size(); k++) {
+                            int ry = sy0 + k * SET_H;
+                            if (my >= ry && my <= ry + SET_H) clickSetting(list.get(k), mx, c);
                         }
                     }
                     return true;
