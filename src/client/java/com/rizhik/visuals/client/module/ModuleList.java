@@ -3,8 +3,9 @@ package com.rizhik.visuals.client.module;
 public class ModuleList {
     public static void init() {
         ModuleManager.register(new Watermark());
-        ModuleManager.register(new Module("TargetHUD", Category.HUD,
-                "Карточка противника, которого ты бьёшь: ник, ХП и броня. Позже можно будет двигать по экрану.") {});
+        ModuleManager.register(new Cooldowns());
+        ModuleManager.register(new TargetHud());
+        ModuleManager.register(new Markers());
         ModuleManager.register(new Module("ClickPearl", Category.PVP,
                 "Бросает эндер-перл по одной кнопке, даже если в руке меч, и возвращает прошлый слот.") {});
         ModuleManager.register(new Module("HitSounds", Category.PVP,
