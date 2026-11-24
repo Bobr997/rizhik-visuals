@@ -14,10 +14,11 @@ public class Watermark extends HudModule {
     }
 
     @Override
-    protected List<String> lines() {
+    protected List<Row> rows() {
         Minecraft mc = Minecraft.getInstance();
-        return List.of(showFps.get()
+        String text = showFps.get()
                 ? "Rizhik Visuals | " + mc.getFps() + " FPS"
-                : "Rizhik Visuals");
+                : "Rizhik Visuals";
+        return List.of(new Row(null, text));
     }
 }
