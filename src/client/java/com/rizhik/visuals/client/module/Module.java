@@ -1,5 +1,6 @@
 package com.rizhik.visuals.client.module;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.ArrayList;
@@ -40,5 +41,6 @@ public abstract class Module {
     protected void onEnable() {}
     protected void onDisable() {}
 
+    public void onTick(Minecraft mc) {}
     public void renderHud(GuiGraphics graphics) {}
 }
