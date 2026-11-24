@@ -3,6 +3,10 @@ package com.rizhik.visuals.client.module;
 public class ModuleList {
     public static void init() {
         ModuleManager.register(new Watermark());
+        ModuleManager.register(new ArmorHud());
+        ModuleManager.register(new TotemCounter());
+        ModuleManager.register(new ShieldInfo());
+        ModuleManager.register(new Keystrokes());
         ModuleManager.register(new Cooldowns());
         ModuleManager.register(new TargetHud());
         ModuleManager.register(new Markers());
