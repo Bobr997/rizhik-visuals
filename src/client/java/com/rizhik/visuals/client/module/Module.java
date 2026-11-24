@@ -1,17 +1,25 @@
 package com.rizhik.visuals.client.module;
 
+import net.minecraft.client.gui.GuiGraphics;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Module {
     public final String name;
+    public final String description;
     public final Category category;
     public final List<Setting<?>> settings = new ArrayList<>();
     private boolean enabled;
 
     protected Module(String name, Category category) {
+        this(name, category, "");
+    }
+
+    protected Module(String name, Category category, String description) {
         this.name = name;
         this.category = category;
+        this.description = description;
     }
 
     protected <S extends Setting<?>> S add(S setting) {
@@ -31,4 +39,6 @@ public abstract class Module {
 
     protected void onEnable() {}
     protected void onDisable() {}
+
+    public void renderHud(GuiGraphics graphics) {}
 }
