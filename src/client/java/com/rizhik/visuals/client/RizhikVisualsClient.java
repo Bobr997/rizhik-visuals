@@ -31,6 +31,9 @@ public class RizhikVisualsClient implements ClientModInitializer {
 			while (menuKey.consumeClick()) {
 				client.setScreen(new ClickGui());
 			}
+			for (Module m : ModuleManager.all()) {
+				if (m.isEnabled()) m.onTick(client);
+			}
 		});
 
 		HudElementRegistry.addLast(
