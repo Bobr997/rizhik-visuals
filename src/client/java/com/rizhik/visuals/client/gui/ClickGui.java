@@ -2,6 +2,7 @@ package com.rizhik.visuals.client.gui;
 
 import com.rizhik.visuals.client.module.Category;
 import com.rizhik.visuals.client.module.ColorSetting;
+import com.rizhik.visuals.client.module.ModeSetting;
 import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleManager;
 import com.rizhik.visuals.client.module.Setting;
@@ -92,7 +93,12 @@ public class ClickGui extends Screen {
         g.drawString(font, s.name, c.x() + 8, ry + 5, 0xFFCCCCCC);
         int barX = c.x() + c.w() - 8 - BAR_W;
         Object v = s.get();
-        if (s instanceof ColorSetting cs) {
+        if (s instanceof ModeSetting ms) {
+            int bx = c.x() + c.w() - 8 - BAR_W;
+            Render.roundedRect(g, bx, ry + 2, BAR_W, 14, 5, 0xFF2A2A31);
+            String t = font.plainSubstrByWidth(ms.current(), BAR_W - 6);
+            g.drawString(font, t, bx + (BAR_W - font.width(t)) / 2, ry + 5, ORANGE);
+        } else if (s instanceof ColorSetting cs) {
             for (int k = 0; k < BAR_W; k++) {
                 g.fill(barX + k, ry + 6, barX + k + 1, ry + 12, ColorSetting.hsv(k / (float) BAR_W, 0.85f, 1f));
             }
@@ -111,6 +117,10 @@ public class ClickGui extends Screen {
 
     @SuppressWarnings("unchecked")
     private void clickSetting(Setting<?> s, double mx, Card c) {
+        if (s instanceof ModeSetting ms) {
+            ms.next();
+            return;
+        }
         int barX = c.x() + c.w() - 8 - BAR_W;
         double f = Math.max(0, Math.min(1, (mx - barX) / BAR_W));
         Object v = s.get();
@@ -230,6 +240,10 @@ public class ClickGui extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         scroll = Math.max(0, Math.min(maxScroll(), scroll - scrollY * 14));
         return true;
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
     }
 
     @Override
