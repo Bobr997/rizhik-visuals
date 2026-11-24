@@ -8,11 +8,18 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ClickGui extends Screen {
     private static final int PW = 440, PH = 260, SIDE = 100, PAD = 10, CARD_H = 38, HEAD = 34;
     private static final int ORANGE = 0xFFFF7B1D;
+    private static final Set<Module> EXPANDED = new HashSet<>();
+
+    private record Card(Module module, int x, int y, int w, int h) {}
+
     private Category selected = Category.PVP;
     private double scroll = 0;
 
@@ -20,26 +27,66 @@ public class ClickGui extends Screen {
         super(Component.literal("Rizhik Visuals"));
     }
 
+    private float scale() {
+        return Math.min(1f, Math.min(width * 0.5f / PW, height * 0.6f / PH));
+    }
+
+    private double lx(double mx) { return (mx - width / 2.0) / scale() + width / 2.0; }
+    private double ly(double my) { return (my - height / 2.0) / scale() + height / 2.0; }
+
     private int px() { return (width - PW) / 2; }
     private int py() { return (height - PH) / 2; }
     private int cardW() { return (PW - SIDE - PAD * 3) / 2; }
     private int cardX(int col) { return px() + SIDE + PAD + col * (cardW() + PAD); }
-    private int cardY(int row) { return py() + HEAD + PAD + row * (CARD_H + PAD) - (int) scroll; }
     private int sideY(int i) { return py() + 44 + i * 26; }
 
+    private int cardHeight(Module m, int cw) {
+        if (!EXPANDED.contains(m)) return CARD_H;
+        int lines = font.split(Component.literal(m.description), cw - 16).size();
+        return Math.max(CARD_H, 22 + lines * 10 + 8);
+    }
+
+    private List<Card> layout() {
+        List<Card> cards = new ArrayList<>();
+        int startY = py() + HEAD + PAD - (int) scroll;
+        int[] colY = {startY, startY};
+        List<Module> mods = ModuleManager.byCategory(selected);
+        for (int i = 0; i < mods.size(); i++) {
+            int col = i % 2;
+            int h = cardHeight(mods.get(i), cardW());
+            cards.add(new Card(mods.get(i), cardX(col), colY[col], cardW(), h));
+            colY[col] += h + PAD;
+        }
+        return cards;
+    }
+
     private double maxScroll() {
-        int n = ModuleManager.byCategory(selected).size();
-        int rows = (n + 1) / 2;
-        int content = rows * (CARD_H + PAD);
-        int view = PH - HEAD - PAD - 6;
-        return Math.max(0, content - view);
+        int bottom = 0;
+        for (Card c : layout()) bottom = Math.max(bottom, c.y() + c.h());
+        int contentBottom = bottom + (int) scroll + PAD;
+        int viewBottom = py() + PH - 4;
+        return Math.max(0, contentBottom - viewBottom);
+    }
+
+    private void chevron(GuiGraphics g, int cx, int cy, boolean up, int color) {
+        for (int i = 0; i < 4; i++) {
+            int dy = up ? (3 - i) : i;
+            g.fill(cx - 3 + i, cy + dy, cx - 2 + i, cy + dy + 1, color);
+            g.fill(cx + 3 - i, cy + dy, cx + 4 - i, cy + dy + 1, color);
+        }
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         g.fill(0, 0, width, height, 0x66000000);
-        int x = px(), y = py();
 
+        float s = scale();
+        g.pose().pushMatrix();
+        g.pose().translate(width / 2f, height / 2f);
+        g.pose().scale(s, s);
+        g.pose().translate(-width / 2f, -height / 2f);
+
+        int x = px(), y = py();
         Render.roundedRect(g, x, y, PW, PH, 10, 0xF0111114);
         Render.roundedRect(g, x, y, SIDE, PH, 10, 0xF00C0C0F);
 
@@ -56,31 +103,42 @@ public class ClickGui extends Screen {
 
         g.drawString(font, selected.title, x + SIDE + PAD, y + 14, 0xFFFFFFFF);
 
-        g.enableScissor(x + SIDE, y + HEAD, x + PW, y + PH - 4);
-        List<Module> mods = ModuleManager.byCategory(selected);
-        for (int i = 0; i < mods.size(); i++) {
-            Module m = mods.get(i);
-            int cx = cardX(i % 2);
-            int cy = cardY(i / 2);
-            int cw = cardW();
-            Render.roundedRect(g, cx, cy, cw, CARD_H, 6, 0xFF1A1A1F);
-            g.drawString(font, m.name, cx + 8, cy + 8, 0xFFFFFFFF);
-            g.drawString(font, font.plainSubstrByWidth(m.description, cw - 52), cx + 8, cy + 22, 0xFF8A8A93);
+        int viewTop = y + HEAD, viewBottom = y + PH - 4;
+        for (Card c : layout()) {
+            if (c.y() < viewTop || c.y() + c.h() > viewBottom) continue;
+            Module m = c.module();
+            boolean open = EXPANDED.contains(m);
 
-            int tx = cx + cw - 32, ty = cy + 12;
+            Render.roundedRect(g, c.x(), c.y(), c.w(), c.h(), 6, 0xFF1A1A1F);
+            g.drawString(font, m.name, c.x() + 8, c.y() + 8, 0xFFFFFFFF);
+
+            if (open) {
+                int ly = c.y() + 22;
+                for (var line : font.split(Component.literal(m.description), c.w() - 16)) {
+                    g.drawString(font, line, c.x() + 8, ly, 0xFF8A8A93);
+                    ly += 10;
+                }
+            } else {
+                g.drawString(font, font.plainSubstrByWidth(m.description, c.w() - 60),
+                        c.x() + 8, c.y() + 22, 0xFF8A8A93);
+            }
+
+            int tx = c.x() + c.w() - 52, ty = c.y() + 13;
             Render.roundedRect(g, tx, ty, 24, 12, 6, m.isEnabled() ? ORANGE : 0xFF3A3A42);
             int kx = m.isEnabled() ? tx + 13 : tx + 1;
             Render.roundedRect(g, kx, ty + 1, 10, 10, 5, 0xFFFFFFFF);
-        }
-        g.disableScissor();
 
+            chevron(g, c.x() + c.w() - 14, c.y() + 17, open, 0xFF8A8A93);
+        }
+
+        g.pose().popMatrix();
         super.render(g, mouseX, mouseY, delta);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() == 0) {
-            double mx = event.x(), my = event.y();
+            double mx = lx(event.x()), my = ly(event.y());
             int x = px(), y = py();
 
             Category[] cats = Category.values();
@@ -94,14 +152,16 @@ public class ClickGui extends Screen {
             }
 
             if (my >= y + HEAD && my <= y + PH - 4) {
-                List<Module> mods = ModuleManager.byCategory(selected);
-                for (int i = 0; i < mods.size(); i++) {
-                    int cx = cardX(i % 2);
-                    int cy = cardY(i / 2);
-                    if (mx >= cx && mx <= cx + cardW() && my >= cy && my <= cy + CARD_H) {
-                        mods.get(i).toggle();
-                        return true;
+                for (Card c : layout()) {
+                    if (mx < c.x() || mx > c.x() + c.w() || my < c.y() || my > c.y() + c.h()) continue;
+                    if (my <= c.y() + CARD_H) {
+                        if (mx >= c.x() + c.w() - 28) {
+                            if (!EXPANDED.remove(c.module())) EXPANDED.add(c.module());
+                        } else {
+                            c.module().toggle();
+                        }
                     }
+                    return true;
                 }
             }
         }
