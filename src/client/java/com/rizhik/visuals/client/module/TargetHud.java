@@ -49,29 +49,33 @@ public class TargetHud extends HudModule {
     }
 
     @Override
-    public int width() { return W; }
+    protected boolean visible() {
+        return current() != null;
+    }
 
     @Override
-    public int height() { return H; }
+    protected int baseWidth() { return W; }
 
     @Override
-    public void renderHud(GuiGraphics g) {
+    protected int baseHeight() { return H; }
+
+    @Override
+    protected void draw(GuiGraphics g) {
         Player p = current();
         if (p == null) return;
         Font f = Minecraft.getInstance().font;
-        int bg = ((int) (opacity.get() / 100.0 * 255) << 24) | 0x111114;
 
-        Render.roundedRect(g, x, y, W, H, 6, bg);
-        Render.roundedRect(g, x + 3, y + 5, 2, H - 10, 1, color.rgb());
+        Render.roundedRect(g, 0, 0, W, H, 6, bg());
+        Render.roundedRect(g, 3, 5, 2, H - 10, 1, color.rgb());
 
-        g.drawString(f, f.plainSubstrByWidth(p.getName().getString(), W - 20), x + 10, y + 6, 0xFFFFFFFF);
+        g.drawString(f, f.plainSubstrByWidth(p.getName().getString(), W - 20), 10, 6, 0xFFFFFFFF);
 
         float max = Math.max(1f, p.getMaxHealth());
         float ratio = Math.max(0f, Math.min(1f, p.getHealth() / max));
         float total = p.getHealth() + p.getAbsorptionAmount();
-        g.drawString(f, String.format("%.1f HP", total), x + 10, y + 18, 0xFFCCCCCC);
+        g.drawString(f, String.format("%.1f HP", total), 10, 18, 0xFFCCCCCC);
 
-        int barX = x + 10, barY = y + 29, barW = W - 20;
+        int barX = 10, barY = 29, barW = W - 20;
         Render.roundedRect(g, barX, barY, barW, 4, 2, 0xFF3A3A42);
         Render.roundedRect(g, barX, barY, Math.max(4, (int) (barW * ratio)), 4, 2,
                 ColorSetting.hsv(ratio * 0.33f, 0.85f, 1f));
@@ -82,18 +86,16 @@ public class TargetHud extends HudModule {
         };
         for (int i = 0; i < slots.length; i++) {
             ItemStack st = p.getItemBySlot(slots[i]);
-            int sx = x + 10 + i * 24;
-            int sy = y + 37;
+            int sx = 10 + i * 24;
+            int sy = 37;
             if (st.isEmpty()) {
                 Render.roundedRect(g, sx, sy, 16, 16, 3, 0x33FFFFFF);
                 continue;
             }
             g.renderItem(st, sx, sy);
             g.renderItemDecorations(f, st, sx, sy);
-            if (st.isDamageableItem() && st.getMaxDamage() > 0) {
-                int pct = 100 * (st.getMaxDamage() - st.getDamageValue()) / st.getMaxDamage();
-                g.drawString(f, pct + "%", sx, sy + 18, 0xFFAAAAAA);
-            }
+            String d = durability(st);
+            if (!d.isEmpty()) g.drawString(f, d, sx, sy + 18, 0xFFAAAAAA);
         }
     }
 }
