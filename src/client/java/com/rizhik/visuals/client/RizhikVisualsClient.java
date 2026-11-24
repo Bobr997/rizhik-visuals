@@ -2,10 +2,13 @@ package com.rizhik.visuals.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.rizhik.visuals.client.gui.ClickGui;
+import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleList;
+import com.rizhik.visuals.client.module.ModuleManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -29,5 +32,13 @@ public class RizhikVisualsClient implements ClientModInitializer {
 				client.setScreen(new ClickGui());
 			}
 		});
+
+		HudElementRegistry.addLast(
+				Identifier.fromNamespaceAndPath("rizhikvisuals", "hud"),
+				(graphics, tracker) -> {
+					for (Module m : ModuleManager.all()) {
+						if (m.isEnabled()) m.renderHud(graphics);
+					}
+				});
 	}
 }
