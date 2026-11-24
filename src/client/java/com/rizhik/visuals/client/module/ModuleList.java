@@ -9,8 +9,7 @@ public class ModuleList {
                 "Бросает эндер-перл по одной кнопке, даже если в руке меч, и возвращает прошлый слот.") {});
         ModuleManager.register(new Module("HitSounds", Category.PVP,
                 "Заменяет звук удара на выбранный звук попадания. Громкость настраивается.") {});
-        ModuleManager.register(new Module("Fullbright", Category.VISUALS,
-                "Выкручивает яркость на максимум, чтобы в пещерах и ночью было светло.") {});
+        ModuleManager.register(new Fullbright());
         ModuleManager.register(new Module("TimeChanger", Category.WORLD,
                 "Фиксирует время суток (день, закат, ночь) ползунком, только у тебя на экране.") {});
         ModuleManager.register(new Module("Trails", Category.WORLD,
