@@ -12,11 +12,19 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 public class Config {
     private static final Path FILE =
             FabricLoader.getInstance().getConfigDir().resolve("rizhikvisuals.properties");
+
+    private static List<Setting<?>> allSettings(Module m) {
+        List<Setting<?>> all = new ArrayList<>(m.settings);
+        all.addAll(m.hidden);
+        return all;
+    }
 
     public static void save() {
         Properties p = new Properties();
@@ -27,7 +35,7 @@ public class Config {
                 p.setProperty(m.name + ".y", String.valueOf(h.y));
                 p.setProperty(m.name + ".scale", String.valueOf(h.scale.get()));
             }
-            for (Setting<?> s : m.settings) {
+            for (Setting<?> s : allSettings(m)) {
                 p.setProperty(m.name + ".s." + s.name, String.valueOf(s.get()));
             }
         }
@@ -69,7 +77,7 @@ public class Config {
                 }
             }
 
-            for (Setting<?> s : m.settings) {
+            for (Setting<?> s : allSettings(m)) {
                 String raw = p.getProperty(m.name + ".s." + s.name);
                 if (raw == null) continue;
                 try {
