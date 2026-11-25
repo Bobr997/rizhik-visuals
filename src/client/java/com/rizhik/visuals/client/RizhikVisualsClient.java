@@ -9,11 +9,13 @@ import com.rizhik.visuals.client.module.Frame;
 import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleList;
 import com.rizhik.visuals.client.module.ModuleManager;
+import com.rizhik.visuals.client.render.WorldFx;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -52,6 +54,8 @@ public class RizhikVisualsClient implements ClientModInitializer {
 		});
 
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> Config.save());
+
+		WorldRenderEvents.BEFORE_TRANSLUCENT.register(WorldFx::render);
 
 		HudElementRegistry.addLast(
 				Identifier.fromNamespaceAndPath("rizhikvisuals", "hud"),
