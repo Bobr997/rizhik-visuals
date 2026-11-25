@@ -12,6 +12,7 @@ public abstract class Module {
     public final String description;
     public final Category category;
     public final List<Setting<?>> settings = new ArrayList<>();
+    public final List<Setting<?>> hidden = new ArrayList<>();
     private boolean enabled;
 
     protected Module(String name, Category category) {
@@ -26,6 +27,11 @@ public abstract class Module {
 
     protected <S extends Setting<?>> S add(S setting) {
         settings.add(setting);
+        return setting;
+    }
+
+    protected <S extends Setting<?>> S addHidden(S setting) {
+        hidden.add(setting);
         return setting;
     }
 
