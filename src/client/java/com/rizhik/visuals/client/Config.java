@@ -25,6 +25,7 @@ public class Config {
             if (m instanceof HudModule h) {
                 p.setProperty(m.name + ".x", String.valueOf(h.x));
                 p.setProperty(m.name + ".y", String.valueOf(h.y));
+                p.setProperty(m.name + ".scale", String.valueOf(h.scale.get()));
             }
             for (Setting<?> s : m.settings) {
                 p.setProperty(m.name + ".s." + s.name, String.valueOf(s.get()));
@@ -61,6 +62,11 @@ public class Config {
             if (m instanceof HudModule h) {
                 h.x = num(p.getProperty(m.name + ".x"), h.x);
                 h.y = num(p.getProperty(m.name + ".y"), h.y);
+                try {
+                    String sc = p.getProperty(m.name + ".scale");
+                    if (sc != null) h.scale.set(Double.parseDouble(sc));
+                } catch (NumberFormatException ignored) {
+                }
             }
 
             for (Setting<?> s : m.settings) {
