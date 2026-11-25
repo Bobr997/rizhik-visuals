@@ -5,8 +5,10 @@ import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.List;
 public class HudEditor extends Screen {
     private HudModule dragging;
     private int offX, offY;
+    private boolean ctrl;
 
     public HudEditor() {
         super(Component.literal("HUD Editor"));
@@ -54,9 +57,25 @@ public class HudEditor extends Screen {
                 g.drawString(font, label, h.x, Math.max(2, h.y - 11), 0xFFFF7B1D);
             }
         }
-        String hint = "ЛКМ — двигать, колёсико — размер, Esc — выйти";
+        String hint = "ЛКМ — двигать, Ctrl + колёсико — размер, Esc — выйти";
         g.drawString(font, hint, (width - font.width(hint)) / 2, 20, 0xFFFFFFFF);
         super.render(g, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_LEFT_CONTROL || event.key() == GLFW.GLFW_KEY_RIGHT_CONTROL) {
+            ctrl = true;
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_LEFT_CONTROL || event.key() == GLFW.GLFW_KEY_RIGHT_CONTROL) {
+            ctrl = false;
+        }
+        return super.keyReleased(event);
     }
 
     @Override
@@ -96,6 +115,7 @@ public class HudEditor extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (!ctrl) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         List<HudModule> list = huds();
         for (int i = list.size() - 1; i >= 0; i--) {
             HudModule h = list.get(i);
