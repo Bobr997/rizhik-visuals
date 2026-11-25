@@ -12,7 +12,7 @@ public abstract class HudModule extends Module {
     public record Row(ItemStack icon, String text) {}
 
     public int x, y;
-    public final Setting<Double> scale = add(new Setting<Double>("Размер", 1.0, 0.5, 2.5));
+    public final Setting<Double> scale = new Setting<Double>("Размер", 1.0, 0.5, 2.5);
     protected final Setting<Double> opacity = add(new Setting<Double>("Прозрачность", 80.0, 20, 100));
     protected final ColorSetting color = add(new ColorSetting("Цвет", 0.07f));
 
