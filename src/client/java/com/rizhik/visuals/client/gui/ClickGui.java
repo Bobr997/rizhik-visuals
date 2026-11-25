@@ -26,6 +26,8 @@ public class ClickGui extends Screen {
 
     private Category selected = Category.PVP;
     private double scroll = 0;
+    private Setting<?> dragSetting;
+    private int dragBarX;
 
     public ClickGui() {
         super(Component.literal("Rizhik Visuals"));
@@ -89,15 +91,28 @@ public class ClickGui extends Screen {
         }
     }
 
+    private boolean isBar(Setting<?> s) {
+        return s instanceof ColorSetting || s.get() instanceof Double;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setFromBar(Setting<?> s, double mx, int barX) {
+        double f = Math.max(0, Math.min(1, (mx - barX) / BAR_W));
+        if (s instanceof ColorSetting cs) {
+            cs.set((float) f);
+        } else if (s.get() instanceof Double) {
+            ((Setting<Double>) s).set(s.min + (s.max - s.min) * f);
+        }
+    }
+
     private void drawSetting(GuiGraphics g, Setting<?> s, Card c, int ry) {
         g.drawString(font, s.name, c.x() + 8, ry + 5, 0xFFCCCCCC);
         int barX = c.x() + c.w() - 8 - BAR_W;
         Object v = s.get();
         if (s instanceof ModeSetting ms) {
-            int bx = c.x() + c.w() - 8 - BAR_W;
-            Render.roundedRect(g, bx, ry + 2, BAR_W, 14, 5, 0xFF2A2A31);
+            Render.roundedRect(g, barX, ry + 2, BAR_W, 14, 5, 0xFF2A2A31);
             String t = font.plainSubstrByWidth(ms.current(), BAR_W - 6);
-            g.drawString(font, t, bx + (BAR_W - font.width(t)) / 2, ry + 5, ORANGE);
+            g.drawString(font, t, barX + (BAR_W - font.width(t)) / 2, ry + 5, ORANGE);
         } else if (s instanceof ColorSetting cs) {
             for (int k = 0; k < BAR_W; k++) {
                 g.fill(barX + k, ry + 6, barX + k + 1, ry + 12, ColorSetting.hsv(k / (float) BAR_W, 0.85f, 1f));
@@ -117,19 +132,17 @@ public class ClickGui extends Screen {
 
     @SuppressWarnings("unchecked")
     private void clickSetting(Setting<?> s, double mx, Card c) {
+        int barX = c.x() + c.w() - 8 - BAR_W;
         if (s instanceof ModeSetting ms) {
             ms.next();
-            return;
-        }
-        int barX = c.x() + c.w() - 8 - BAR_W;
-        double f = Math.max(0, Math.min(1, (mx - barX) / BAR_W));
-        Object v = s.get();
-        if (s instanceof ColorSetting cs) {
-            if (mx >= barX - 4) cs.set((float) f);
-        } else if (v instanceof Boolean b) {
+        } else if (isBar(s)) {
+            if (mx >= barX - 4) {
+                dragSetting = s;
+                dragBarX = barX;
+                setFromBar(s, mx, barX);
+            }
+        } else if (s.get() instanceof Boolean b) {
             ((Setting<Boolean>) s).set(!b);
-        } else if (v instanceof Double) {
-            if (mx >= barX - 4) ((Setting<Double>) s).set(s.min + (s.max - s.min) * f);
         }
     }
 
@@ -234,6 +247,21 @@ public class ClickGui extends Screen {
             }
         }
         return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (dragSetting != null) {
+            setFromBar(dragSetting, lx(event.x()), dragBarX);
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        dragSetting = null;
+        return super.mouseReleased(event);
     }
 
     @Override
