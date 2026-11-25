@@ -8,42 +8,63 @@ import net.minecraft.world.item.Items;
 public class CustomHand extends Module {
     private static CustomHand instance;
 
-    private final Setting<Double> swordScale = add(new Setting<Double>("Меч: размер", 1.0, 0.3, 1.6));
-    private final Setting<Double> swordX = add(new Setting<Double>("Меч: X", 0.0, -0.6, 0.6));
-    private final Setting<Double> swordY = add(new Setting<Double>("Меч: Y", 0.0, -0.6, 0.6));
-    private final Setting<Double> swordZ = add(new Setting<Double>("Меч: Z", 0.0, -0.6, 0.6));
+    public static class Tweak {
+        public final Setting<Double> scale, x, y, z;
 
-    private final Setting<Double> shieldScale = add(new Setting<Double>("Щит: размер", 1.0, 0.3, 1.6));
-    private final Setting<Double> shieldX = add(new Setting<Double>("Щит: X", 0.0, -0.6, 0.6));
-    private final Setting<Double> shieldY = add(new Setting<Double>("Щит: Y", 0.0, -0.6, 0.6));
-    private final Setting<Double> shieldZ = add(new Setting<Double>("Щит: Z", 0.0, -0.6, 0.6));
+        Tweak(String prefix) {
+            scale = new Setting<Double>(prefix + ": размер", 1.0, 0.3, 2.0);
+            x = new Setting<Double>(prefix + ": X", 0.0, -1.5, 1.5);
+            y = new Setting<Double>(prefix + ": Y", 0.0, -1.5, 1.5);
+            z = new Setting<Double>(prefix + ": Z", 0.0, -1.5, 1.5);
+        }
 
-    private final Setting<Double> totemScale = add(new Setting<Double>("Тотем: размер", 1.0, 0.3, 1.6));
-    private final Setting<Double> totemX = add(new Setting<Double>("Тотем: X", 0.0, -0.6, 0.6));
-    private final Setting<Double> totemY = add(new Setting<Double>("Тотем: Y", 0.0, -0.6, 0.6));
-    private final Setting<Double> totemZ = add(new Setting<Double>("Тотем: Z", 0.0, -0.6, 0.6));
+        public void reset() {
+            scale.set(1.0);
+            x.set(0.0);
+            y.set(0.0);
+            z.set(0.0);
+        }
+    }
+
+    public final Tweak sword = new Tweak("Меч");
+    public final Tweak shield = new Tweak("Щит");
+    public final Tweak totem = new Tweak("Тотем");
 
     public CustomHand() {
         super("CustomHand", Category.VISUALS,
-                "Меняет размер и положение меча, щита и тотема в руке от первого лица. X двигает вправо, Y вверх, Z вперёд. Меняется вся рука с предметом.");
+                "Меняет размер и положение меча, щита и тотема в руке. Открой редактор клавишей H, зажми Ctrl: мышь двигает предмет, колёсико меняет размер.");
         instance = this;
+        for (Tweak t : new Tweak[]{sword, shield, totem}) {
+            addHidden(t.scale);
+            addHidden(t.x);
+            addHidden(t.y);
+            addHidden(t.z);
+        }
+    }
+
+    public static Tweak tweakFor(ItemStack stack) {
+        CustomHand h = instance;
+        if (h == null) return null;
+        if (stack.is(ItemTags.SWORDS)) return h.sword;
+        if (stack.is(Items.SHIELD)) return h.shield;
+        if (stack.is(Items.TOTEM_OF_UNDYING)) return h.totem;
+        return null;
+    }
+
+    public static String labelFor(ItemStack stack) {
+        if (stack.is(ItemTags.SWORDS)) return "Меч";
+        if (stack.is(Items.SHIELD)) return "Щит";
+        if (stack.is(Items.TOTEM_OF_UNDYING)) return "Тотем";
+        return "";
     }
 
     public static void transform(PoseStack pose, ItemStack stack) {
         CustomHand h = instance;
         if (h == null || !h.isEnabled()) return;
-        if (stack.is(ItemTags.SWORDS)) {
-            h.apply(pose, h.swordScale, h.swordX, h.swordY, h.swordZ);
-        } else if (stack.is(Items.SHIELD)) {
-            h.apply(pose, h.shieldScale, h.shieldX, h.shieldY, h.shieldZ);
-        } else if (stack.is(Items.TOTEM_OF_UNDYING)) {
-            h.apply(pose, h.totemScale, h.totemX, h.totemY, h.totemZ);
-        }
-    }
-
-    private void apply(PoseStack pose, Setting<Double> s, Setting<Double> x, Setting<Double> y, Setting<Double> z) {
-        pose.translate(x.get().floatValue(), y.get().floatValue(), z.get().floatValue());
-        float sc = s.get().floatValue();
+        Tweak t = tweakFor(stack);
+        if (t == null) return;
+        pose.translate(t.x.get().floatValue(), t.y.get().floatValue(), t.z.get().floatValue());
+        float sc = t.scale.get().floatValue();
         pose.scale(sc, sc, sc);
     }
 }
