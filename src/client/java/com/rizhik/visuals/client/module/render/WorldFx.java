@@ -43,7 +43,7 @@ public class WorldFx {
     private static boolean failed;
 
     public static int argb(int rgb, double alpha) {
-        int a = (int) (Math.max(0, Math.min(1, alpha)) * 215);
+        int a = (int) (Math.max(0, Math.min(1, alpha)) * 255);
         return (a << 24) | (rgb & 0xFFFFFF);
     }
 
