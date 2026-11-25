@@ -7,10 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Trails extends Module {
-    private final ModeSetting mode = add(new ModeSetting("Вид", 0, "Лента", "Стена"));
     private final ColorSetting color = add(new ColorSetting("Цвет", 0.55f));
     private final Setting<Boolean> rainbow = add(new Setting<Boolean>("Радужный", false));
-    private final Setting<Double> thickness = add(new Setting<Double>("Толщина", 0.5, 0.15, 1.2));
+    private final Setting<Double> height = add(new Setting<Double>("Высота", 1.0, 0.3, 2.5));
     private final Setting<Double> length = add(new Setting<Double>("Длина следа", 3.0, 0.5, 8.0));
     private final Setting<Double> brightness = add(new Setting<Double>("Яркость", 100.0, 30, 100));
 
@@ -18,7 +17,7 @@ public class Trails extends Module {
 
     public Trails() {
         super("Trails", Category.WORLD,
-                "Светящийся след за тобой: лента по земле или светящаяся стена. Вид, цвет, толщина, длина, яркость и радужный режим настраиваются.");
+                "Светящаяся стена-след за тобой, видна с обеих сторон. Цвет, высота, длина, яркость и радужный режим настраиваются.");
     }
 
     @Override
@@ -58,8 +57,7 @@ public class Trails extends Module {
 
         List<double[]> list = new ArrayList<>(pts);
         list.add(new double[]{p.getX(), p.getY(), p.getZ(), now});
-        boolean wall = mode.get() == 1;
-        double half = thickness.get() / 2.0;
+        double h = height.get();
         double bright = brightness.get() / 100.0;
 
         for (int i = 0; i < list.size() - 1; i++) {
@@ -74,25 +72,13 @@ public class Trails extends Module {
             double ab = Math.pow(fb, 0.6) * bright;
             int ca = WorldFx.argb(colorAt(a[3]), aa);
             int cb = WorldFx.argb(colorAt(b[3]), ab);
+            int ta = WorldFx.argb(colorAt(a[3]), aa * 0.35);
+            int tb = WorldFx.argb(colorAt(b[3]), ab * 0.35);
 
-            if (wall) {
-                double h = 1.0;
-                int ta = WorldFx.argb(colorAt(a[3]), aa * 0.35);
-                int tb = WorldFx.argb(colorAt(b[3]), ab * 0.35);
-                q.vertex(a[0], a[1], a[2], ca);
-                q.vertex(b[0], b[1], b[2], cb);
-                q.vertex(b[0], b[1] + h, b[2], tb);
-                q.vertex(a[0], a[1] + h, a[2], ta);
-            } else {
-                double nx = -dz / len, nz = dx / len;
-                double wa = half * (0.35 + 0.65 * fa);
-                double wb = half * (0.35 + 0.65 * fb);
-                double ya = a[1] + 0.03, yb = b[1] + 0.03;
-                q.vertex(a[0] + nx * wa, ya, a[2] + nz * wa, ca);
-                q.vertex(a[0] - nx * wa, ya, a[2] - nz * wa, ca);
-                q.vertex(b[0] - nx * wb, yb, b[2] - nz * wb, cb);
-                q.vertex(b[0] + nx * wb, yb, b[2] + nz * wb, cb);
-            }
+            q.vertex(a[0], a[1], a[2], ca);
+            q.vertex(b[0], b[1], b[2], cb);
+            q.vertex(b[0], b[1] + h, b[2], tb);
+            q.vertex(a[0], a[1] + h, a[2], ta);
         }
     }
 }
