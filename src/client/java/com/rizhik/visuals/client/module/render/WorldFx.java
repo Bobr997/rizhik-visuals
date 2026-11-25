@@ -51,6 +51,9 @@ public class WorldFx {
         private final BufferBuilder buffer;
         private final Matrix4fc pose;
         private final Vec3 cam;
+        private final float[] px = new float[4], py = new float[4], pz = new float[4];
+        private final float[] pr = new float[4], pg = new float[4], pb = new float[4], pa = new float[4];
+        private int n;
 
         Quads(BufferBuilder buffer, Matrix4fc pose, Vec3 cam) {
             this.buffer = buffer;
@@ -59,9 +62,23 @@ public class WorldFx {
         }
 
         public void vertex(double x, double y, double z, int argb) {
-            buffer.addVertex(pose, (float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z))
-                    .setColor(((argb >> 16) & 255) / 255f, ((argb >> 8) & 255) / 255f,
-                            (argb & 255) / 255f, ((argb >>> 24) & 255) / 255f);
+            px[n] = (float) (x - cam.x);
+            py[n] = (float) (y - cam.y);
+            pz[n] = (float) (z - cam.z);
+            pr[n] = ((argb >> 16) & 255) / 255f;
+            pg[n] = ((argb >> 8) & 255) / 255f;
+            pb[n] = (argb & 255) / 255f;
+            pa[n] = ((argb >>> 24) & 255) / 255f;
+            n++;
+            if (n == 4) {
+                for (int i = 0; i < 4; i++) put(i);
+                for (int i = 3; i >= 0; i--) put(i);
+                n = 0;
+            }
+        }
+
+        private void put(int i) {
+            buffer.addVertex(pose, px[i], py[i], pz[i]).setColor(pr[i], pg[i], pb[i], pa[i]);
         }
     }
 
