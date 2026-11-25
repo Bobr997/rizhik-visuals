@@ -2,6 +2,7 @@ package com.rizhik.visuals.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.rizhik.visuals.client.gui.ClickGui;
+import com.rizhik.visuals.client.gui.HandEditor;
 import com.rizhik.visuals.client.gui.HudEditor;
 import com.rizhik.visuals.client.gui.MarkersScreen;
 import com.rizhik.visuals.client.module.ClickPearl;
@@ -37,6 +38,8 @@ public class RizhikVisualsClient implements ClientModInitializer {
 				"key.rizhikvisuals.hudeditor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_CONTROL, category));
 		KeyMapping markersKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.rizhikvisuals.markers", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_ALT, category));
+		KeyMapping handKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+				"key.rizhikvisuals.handeditor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, category));
 		ClickPearl.key = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.rizhikvisuals.clickpearl", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
 
@@ -44,11 +47,14 @@ public class RizhikVisualsClient implements ClientModInitializer {
 			while (menuKey.consumeClick()) client.setScreen(new ClickGui());
 			while (editorKey.consumeClick()) client.setScreen(new HudEditor());
 			while (markersKey.consumeClick()) client.setScreen(new MarkersScreen());
+			while (handKey.consumeClick()) client.setScreen(new HandEditor());
 			for (Module m : ModuleManager.all()) {
 				if (m.isEnabled()) m.onTick(client);
 			}
 
-			boolean ours = client.screen instanceof ClickGui || client.screen instanceof HudEditor;
+			boolean ours = client.screen instanceof ClickGui
+					|| client.screen instanceof HudEditor
+					|| client.screen instanceof HandEditor;
 			if (wasOurs && !ours) Config.save();
 			wasOurs = ours;
 		});
