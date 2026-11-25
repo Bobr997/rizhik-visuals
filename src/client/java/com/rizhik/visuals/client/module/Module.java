@@ -1,5 +1,6 @@
 package com.rizhik.visuals.client.module;
 
+import com.rizhik.visuals.client.render.WorldFx;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
@@ -43,4 +44,5 @@ public abstract class Module {
 
     public void onTick(Minecraft mc) {}
     public void renderHud(GuiGraphics graphics) {}
+    public void renderWorld(WorldFx.Quads quads) {}
 }
