@@ -10,12 +10,13 @@ public class ChinaHat extends Module {
     private final ColorSetting color = add(new ColorSetting("Цвет", 0.07f));
     private final Setting<Boolean> rainbow = add(new Setting<Boolean>("Радужный", false));
     private final Setting<Double> size = add(new Setting<Double>("Размер", 1.0, 0.6, 1.8));
+    private final Setting<Double> lift = add(new Setting<Double>("Высота", 0.12, -0.3, 0.8));
     private final Setting<Double> opacity = add(new Setting<Double>("Прозрачность", 70.0, 20, 100));
     private final Setting<Boolean> firstPerson = add(new Setting<Boolean>("От 1-го лица", false));
 
     public ChinaHat() {
         super("ChinaHat", Category.VISUALS,
-                "Светящаяся конусная шляпа над головой с яркой кромкой. Видна в виде от третьего лица (F5). Стиль, цвет, радужный режим, размер и прозрачность настраиваются.");
+                "Светящаяся конусная шляпа над головой с яркой кромкой. Видна в виде от третьего лица (F5). Стиль, цвет, радужный режим, размер, высота и прозрачность настраиваются.");
     }
 
     private int rim(int i, long now) {
@@ -36,7 +37,7 @@ public class ChinaHat extends Module {
         double cy = p.yo + (p.getY() - p.yo) * pt;
         double cz = p.zo + (p.getZ() - p.zo) * pt;
 
-        double top = cy + p.getBbHeight() - 0.05;
+        double top = cy + p.getBbHeight() + lift.get();
         double r = 0.55 * size.get();
         double apexY = top + 0.32 * size.get();
         double op = opacity.get() / 100.0;
