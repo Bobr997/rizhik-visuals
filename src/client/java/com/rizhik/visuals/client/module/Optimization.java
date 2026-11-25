@@ -3,8 +3,8 @@ package com.rizhik.visuals.client.module;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
-import net.minecraft.client.ParticleStatus;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -34,6 +34,23 @@ public class Optimization extends Module {
                 "Поднимает FPS: ограничивает дальность прорисовки и симуляции, убирает облака, тени и лишние частицы. При выключении все настройки возвращаются как были.");
     }
 
+    private static String particleName(Options o) {
+        return ((Enum<?>) o.particles().get()).name();
+    }
+
+    private static Object particleConst(Options o, String name) {
+        Enum<?> cur = (Enum<?>) o.particles().get();
+        for (Object c : cur.getDeclaringClass().getEnumConstants()) {
+            if (((Enum<?>) c).name().equals(name)) return c;
+        }
+        return cur;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void setParticles(Options o, Object value) {
+        ((OptionInstance) o.particles()).set(value);
+    }
+
     private static Properties readBackup() {
         if (!Files.exists(BACKUP)) return null;
         Properties p = new Properties();
@@ -58,7 +75,7 @@ public class Optimization extends Module {
         p.setProperty("sd", String.valueOf(o.simulationDistance().get()));
         p.setProperty("ed", String.valueOf(o.entityDistanceScaling().get()));
         p.setProperty("cloud", o.cloudStatus().get().name());
-        p.setProperty("part", o.particles().get().name());
+        p.setProperty("part", particleName(o));
         p.setProperty("shadows", String.valueOf(o.entityShadows().get()));
         p.setProperty("blend", String.valueOf(o.biomeBlendRadius().get()));
         return p;
@@ -70,7 +87,7 @@ public class Optimization extends Module {
             o.simulationDistance().set(Integer.parseInt(p.getProperty("sd")));
             o.entityDistanceScaling().set(Double.parseDouble(p.getProperty("ed")));
             o.cloudStatus().set(CloudStatus.valueOf(p.getProperty("cloud")));
-            o.particles().set(ParticleStatus.valueOf(p.getProperty("part")));
+            setParticles(o, particleConst(o, p.getProperty("part")));
             o.entityShadows().set(Boolean.parseBoolean(p.getProperty("shadows")));
             o.biomeBlendRadius().set(Integer.parseInt(p.getProperty("blend")));
         } catch (RuntimeException ignored) {
@@ -122,8 +139,8 @@ public class Optimization extends Module {
             CloudStatus cs = noClouds.get() ? CloudStatus.OFF : CloudStatus.valueOf(orig.getProperty("cloud"));
             if (o.cloudStatus().get() != cs) o.cloudStatus().set(cs);
 
-            ParticleStatus ps = minParticles.get() ? ParticleStatus.MINIMAL : ParticleStatus.valueOf(orig.getProperty("part"));
-            if (o.particles().get() != ps) o.particles().set(ps);
+            String wantParticles = minParticles.get() ? "MINIMAL" : orig.getProperty("part");
+            if (!particleName(o).equals(wantParticles)) setParticles(o, particleConst(o, wantParticles));
 
             boolean sh = noShadows.get() ? false : Boolean.parseBoolean(orig.getProperty("shadows"));
             if (o.entityShadows().get() != sh) o.entityShadows().set(sh);
