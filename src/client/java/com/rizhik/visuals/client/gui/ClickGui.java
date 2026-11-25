@@ -174,8 +174,9 @@ public class ClickGui extends Screen {
         g.drawString(font, selected.title, x + SIDE + PAD, y + 14, 0xFFFFFFFF);
 
         int viewTop = y + HEAD, viewBottom = y + PH - 4;
+        g.enableScissor(x + SIDE, viewTop, x + PW, viewBottom);
         for (Card c : layout()) {
-            if (c.y() < viewTop || c.y() + c.h() > viewBottom) continue;
+            if (c.y() + c.h() < viewTop || c.y() > viewBottom) continue;
             Module m = c.module();
             boolean open = EXPANDED.contains(m);
 
@@ -204,6 +205,7 @@ public class ClickGui extends Screen {
 
             chevron(g, c.x() + c.w() - 14, c.y() + 17, open, 0xFF8A8A93);
         }
+        g.disableScissor();
 
         g.pose().popMatrix();
         super.render(g, mouseX, mouseY, delta);
