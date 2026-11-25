@@ -18,6 +18,8 @@ public class Optimization extends Module {
     private static final Path BACKUP =
             FabricLoader.getInstance().getConfigDir().resolve("rizhikvisuals_optimization_backup.properties");
 
+    private final Setting<Double> maxFps = add(new Setting<Double>("Макс. FPS", 120.0, 30, 260));
+    private final Setting<Boolean> noVsync = add(new Setting<Boolean>("Без VSync", true));
     private final Setting<Double> renderDist = add(new Setting<Double>("Дальность", 8.0, 4, 16));
     private final Setting<Double> simDist = add(new Setting<Double>("Симуляция", 6.0, 5, 12));
     private final Setting<Double> entityDist = add(new Setting<Double>("Сущности", 0.6, 0.5, 1.5));
@@ -31,7 +33,7 @@ public class Optimization extends Module {
 
     public Optimization() {
         super("Optimization", Category.MISC,
-                "Поднимает FPS: ограничивает дальность прорисовки и симуляции, убирает облака, тени и лишние частицы. При выключении все настройки возвращаются как были.");
+                "Поднимает FPS: снимает лимит кадров и VSync, ограничивает дальность прорисовки и симуляции, убирает облака, тени и лишние частицы. При выключении все настройки возвращаются как были.");
     }
 
     private static String particleName(Options o) {
@@ -78,6 +80,8 @@ public class Optimization extends Module {
         p.setProperty("part", particleName(o));
         p.setProperty("shadows", String.valueOf(o.entityShadows().get()));
         p.setProperty("blend", String.valueOf(o.biomeBlendRadius().get()));
+        p.setProperty("fps", String.valueOf(o.framerateLimit().get()));
+        p.setProperty("vsync", String.valueOf(o.enableVsync().get()));
         return p;
     }
 
@@ -92,6 +96,13 @@ public class Optimization extends Module {
             o.biomeBlendRadius().set(Integer.parseInt(p.getProperty("blend")));
         } catch (RuntimeException ignored) {
         }
+        try {
+            String f = p.getProperty("fps");
+            if (f != null) o.framerateLimit().set(Integer.parseInt(f));
+            String v = p.getProperty("vsync");
+            if (v != null) o.enableVsync().set(Boolean.parseBoolean(v));
+        } catch (RuntimeException ignored) {
+        }
     }
 
     @Override
@@ -100,6 +111,10 @@ public class Optimization extends Module {
         orig = readBackup();
         if (orig == null) {
             orig = snapshot(o);
+            writeBackup(orig);
+        } else if (!orig.containsKey("fps")) {
+            orig.setProperty("fps", String.valueOf(o.framerateLimit().get()));
+            orig.setProperty("vsync", String.valueOf(o.enableVsync().get()));
             writeBackup(orig);
         }
         apply(o);
@@ -126,6 +141,16 @@ public class Optimization extends Module {
 
     private void apply(Options o) {
         if (orig == null) return;
+
+        try {
+            int fl = (int) Math.round(maxFps.get());
+            if (o.framerateLimit().get() != fl) o.framerateLimit().set(fl);
+
+            boolean vs = noVsync.get() ? false : Boolean.parseBoolean(orig.getProperty("vsync", "true"));
+            if (o.enableVsync().get() != vs) o.enableVsync().set(vs);
+        } catch (RuntimeException ignored) {
+        }
+
         try {
             int rd = (int) Math.min(Integer.parseInt(orig.getProperty("rd")), Math.round(renderDist.get()));
             if (o.renderDistance().get() != rd) o.renderDistance().set(rd);
