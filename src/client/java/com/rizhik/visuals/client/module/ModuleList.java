@@ -11,6 +11,7 @@ public class ModuleList {
         ModuleManager.register(new TargetHud());
         ModuleManager.register(new Markers());
         ModuleManager.register(new ClickPearl());
+        ModuleManager.register(new AutoCart());
         ModuleManager.register(new HitSounds());
         ModuleManager.register(new Fullbright());
         ModuleManager.register(new CustomHand());
