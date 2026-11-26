@@ -13,7 +13,6 @@ public class CustomHotbar extends Module {
     private final Setting<Double> opacity = add(new Setting<Double>("Прозрачность", 85.0, 30, 100));
     private final Setting<Double> radius = add(new Setting<Double>("Скругление", 7.0, 0, 10));
     private final ColorSetting accent = add(new ColorSetting("Цвет", 0.74f));
-    private final Setting<Boolean> glow = add(new Setting<Boolean>("Свечение", true));
     private final Setting<Boolean> counts = add(new Setting<Boolean>("Количество", true));
     private final Setting<Boolean> bars = add(new Setting<Boolean>("Прочность", true));
 
@@ -55,16 +54,15 @@ public class CustomHotbar extends Module {
         double op = opacity.get() / 100.0;
         double r = radius.get();
 
-        if (glow.get()) Ui.glow(g, x, y, bw, bh, r, acc, 2, 1.5);
         Ui.rrect(g, x, y, bw, bh, r, Ui.alpha(Ui.BG, op));
 
         int sel = inv.getSelectedSlot();
         float target = x + 2 + sel * 20;
         selX = selX < 0 ? target : Ui.approach(selX, target, dt, 22f);
+        double sr = Math.min(5, r);
+        Ui.rrect(g, selX, y + 2, 18, 18, sr, acc);
         double b = Ui.px(1.5);
-        Ui.rrect(g, selX, y + 2, 18, 18, Math.min(5, r), acc);
-        Ui.rrect(g, selX + b, y + 2 + b, 18 - 2 * b, 18 - 2 * b, Math.max(0, Math.min(5, r) - b),
-                Ui.mix(Ui.BG, acc, 0.28));
+        Ui.rrect(g, selX + b, y + 2 + b, 18 - 2 * b, 18 - 2 * b, Math.max(0, sr - b), Ui.mix(Ui.BG, acc, 0.28));
 
         for (int i = 0; i < 9; i++) {
             ItemStack st = inv.getItem(i);
