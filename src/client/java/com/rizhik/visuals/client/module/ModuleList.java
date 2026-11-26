@@ -23,6 +23,7 @@ public class ModuleList {
         ModuleManager.register(new Trails());
         ModuleManager.register(new JumpCircles());
         ModuleManager.register(new Optimization());
+        ModuleManager.register(new SkyColor());
         ModuleManager.register(new Module("TimeChanger", Category.WORLD,
                 "Фиксирует время суток (день, закат, ночь) ползунком, только у тебя на экране.") {});
         ModuleManager.register(new Module("StreamerMode", Category.MISC,
