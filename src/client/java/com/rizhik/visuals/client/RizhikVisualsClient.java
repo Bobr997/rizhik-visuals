@@ -5,6 +5,7 @@ import com.rizhik.visuals.client.gui.ClickGui;
 import com.rizhik.visuals.client.gui.HandEditor;
 import com.rizhik.visuals.client.gui.HudEditor;
 import com.rizhik.visuals.client.gui.MarkersScreen;
+import com.rizhik.visuals.client.module.AutoCart;
 import com.rizhik.visuals.client.module.ClickPearl;
 import com.rizhik.visuals.client.module.Frame;
 import com.rizhik.visuals.client.module.Module;
@@ -42,6 +43,8 @@ public class RizhikVisualsClient implements ClientModInitializer {
 				"key.rizhikvisuals.handeditor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, category));
 		ClickPearl.key = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.rizhikvisuals.clickpearl", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
+		AutoCart.key = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+				"key.rizhikvisuals.autocart", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (menuKey.consumeClick()) client.setScreen(new ClickGui());
