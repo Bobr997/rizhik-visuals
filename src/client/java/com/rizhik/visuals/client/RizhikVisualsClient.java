@@ -7,6 +7,7 @@ import com.rizhik.visuals.client.gui.HudEditor;
 import com.rizhik.visuals.client.gui.MarkersScreen;
 import com.rizhik.visuals.client.module.AutoCart;
 import com.rizhik.visuals.client.module.ClickPearl;
+import com.rizhik.visuals.client.module.CustomHotbar;
 import com.rizhik.visuals.client.module.Frame;
 import com.rizhik.visuals.client.module.Module;
 import com.rizhik.visuals.client.module.ModuleList;
@@ -17,6 +18,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
@@ -65,6 +67,12 @@ public class RizhikVisualsClient implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> Config.save());
 
 		WorldRenderEvents.BEFORE_TRANSLUCENT.register(WorldFx::render);
+
+		HudElementRegistry.replaceElement(VanillaHudElements.HOTBAR, original -> (graphics, tracker) -> {
+			CustomHotbar hb = CustomHotbar.INSTANCE;
+			if (hb != null && hb.isEnabled()) hb.draw(graphics, tracker);
+			else original.render(graphics, tracker);
+		});
 
 		HudElementRegistry.addLast(
 				Identifier.fromNamespaceAndPath("rizhikvisuals", "hud"),
