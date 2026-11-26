@@ -13,57 +13,80 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class ClickGui extends Screen {
-    private static final int PW = 440, PH = 260, SIDE = 100, PAD = 10, CARD_H = 38, HEAD = 34, SET_H = 18;
-    private static final int BAR_W = 56;
-    private static final int ORANGE = 0xFFFF7B1D;
+    private static final int SIDE = 112, PAD = 10, HEAD = 36, CARD_H = 42, SET_H = 22, BAR_W = 58;
     private static final Set<Module> EXPANDED = new HashSet<>();
+    private static final Map<Object, Float> OPEN = new IdentityHashMap<>();
+    private static final Map<Object, Float> TOG = new IdentityHashMap<>();
+    private static final Map<Object, Float> HOV = new IdentityHashMap<>();
 
     private record Card(Module module, int x, int y, int w, int h) {}
 
     private Category selected = Category.PVP;
-    private double scroll = 0;
+    private double scroll = 0, scrollAnim = 0;
+    private float appear = 0f, pillY = -1f;
+    private long last = System.nanoTime();
+    private float dt = 0.016f;
     private Setting<?> dragSetting;
-    private int dragBarX;
+    private double dragBarX;
 
     public ClickGui() {
         super(Component.literal("Rizhik Visuals"));
     }
 
-    private float scale() {
-        return Math.min(1f, Math.min(width * 0.5f / PW, height * 0.6f / PH));
+    private static float get(Map<Object, Float> map, Object key, float def) {
+        Float v = map.get(key);
+        return v == null ? def : v;
     }
 
-    private double lx(double mx) { return (mx - width / 2.0) / scale() + width / 2.0; }
-    private double ly(double my) { return (my - height / 2.0) / scale() + height / 2.0; }
+    private static float step(Map<Object, Float> map, Object key, float target, float dt, float speed) {
+        float cur = get(map, key, target);
+        cur = Ui.approach(cur, target, dt, speed);
+        if (Math.abs(cur - target) < 0.003f) cur = target;
+        map.put(key, cur);
+        return cur;
+    }
 
-    private int px() { return (width - PW) / 2; }
-    private int py() { return (height - PH) / 2; }
-    private int cardW() { return (PW - SIDE - PAD * 3) / 2; }
+    private float sc() {
+        float e = 1f - (1f - appear) * (1f - appear) * (1f - appear);
+        return 0.94f + 0.06f * e;
+    }
+
+    private double lx(double mx) { return (mx - width / 2.0) / sc() + width / 2.0; }
+    private double ly(double my) { return (my - height / 2.0) / sc() + height / 2.0; }
+
+    private int pw() { return Math.min(480, width - 16); }
+    private int ph() { return Math.min(290, height - 16); }
+    private int px() { return (width - pw()) / 2; }
+    private int py() { return (height - ph()) / 2; }
+    private int cardW() { return (pw() - SIDE - PAD * 3) / 2; }
     private int cardX(int col) { return px() + SIDE + PAD + col * (cardW() + PAD); }
-    private int sideY(int i) { return py() + 44 + i * 26; }
+    private int sideY(int i) { return py() + 52 + i * 28; }
 
     private int descLines(Module m, int cw) {
-        return font.split(Component.literal(m.description), cw - 16).size();
+        return font.split(Component.literal(m.description), cw - 20).size();
     }
 
     private int cardHeight(Module m, int cw) {
-        if (!EXPANDED.contains(m)) return CARD_H;
-        int h = 22 + descLines(m, cw) * 10 + 6;
-        if (!m.settings.isEmpty()) h += m.settings.size() * SET_H + 4;
-        return Math.max(CARD_H, h);
+        float o = get(OPEN, m, EXPANDED.contains(m) ? 1f : 0f);
+        int expanded = 24 + descLines(m, cw) * 10 + 6;
+        if (!m.settings.isEmpty()) expanded += m.settings.size() * SET_H + 6;
+        expanded = Math.max(expanded, CARD_H);
+        return Math.round(CARD_H + (expanded - CARD_H) * o);
     }
 
     private int settingsTop(Card c) {
-        return c.y() + 22 + descLines(c.module(), c.w()) * 10 + 6;
+        return c.y() + 24 + descLines(c.module(), c.w()) * 10 + 6;
     }
 
     private List<Card> layout() {
         List<Card> cards = new ArrayList<>();
-        int startY = py() + HEAD + PAD - (int) scroll;
+        int startY = py() + HEAD + PAD - (int) Math.round(scrollAnim);
         int[] colY = {startY, startY};
         List<Module> mods = ModuleManager.byCategory(selected);
         for (int i = 0; i < mods.size(); i++) {
@@ -78,17 +101,9 @@ public class ClickGui extends Screen {
     private double maxScroll() {
         int bottom = 0;
         for (Card c : layout()) bottom = Math.max(bottom, c.y() + c.h());
-        int contentBottom = bottom + (int) scroll + PAD;
-        int viewBottom = py() + PH - 4;
+        int contentBottom = bottom + (int) Math.round(scrollAnim) + PAD;
+        int viewBottom = py() + ph() - 8;
         return Math.max(0, contentBottom - viewBottom);
-    }
-
-    private void chevron(GuiGraphics g, int cx, int cy, boolean up, int color) {
-        for (int i = 0; i < 4; i++) {
-            int dy = up ? (3 - i) : i;
-            g.fill(cx - 3 + i, cy + dy, cx - 2 + i, cy + dy + 1, color);
-            g.fill(cx + 3 - i, cy + dy, cx + 4 - i, cy + dy + 1, color);
-        }
     }
 
     private boolean isBar(Setting<?> s) {
@@ -96,7 +111,7 @@ public class ClickGui extends Screen {
     }
 
     @SuppressWarnings("unchecked")
-    private void setFromBar(Setting<?> s, double mx, int barX) {
+    private void setFromBar(Setting<?> s, double mx, double barX) {
         double f = Math.max(0, Math.min(1, (mx - barX) / BAR_W));
         if (s instanceof ColorSetting cs) {
             cs.set((float) f);
@@ -106,37 +121,43 @@ public class ClickGui extends Screen {
     }
 
     private void drawSetting(GuiGraphics g, Setting<?> s, Card c, int ry) {
-        g.drawString(font, s.name, c.x() + 8, ry + 5, 0xFFCCCCCC);
-        int barX = c.x() + c.w() - 8 - BAR_W;
+        int nameX = c.x() + 10;
+        g.drawString(font, s.name, nameX, ry + 7, Ui.SUBTEXT);
+        int barX = c.x() + c.w() - 10 - BAR_W;
         Object v = s.get();
+
         if (s instanceof ModeSetting ms) {
-            Render.roundedRect(g, barX, ry + 2, BAR_W, 14, 5, 0xFF2A2A31);
-            String t = font.plainSubstrByWidth(ms.current(), BAR_W - 6);
-            g.drawString(font, t, barX + (BAR_W - font.width(t)) / 2, ry + 5, ORANGE);
+            Ui.rrect(g, barX, ry + 3, BAR_W, 16, 8, Ui.OFF);
+            String t = font.plainSubstrByWidth(ms.current(), BAR_W - 8);
+            g.drawString(font, t, barX + (BAR_W - font.width(t)) / 2, ry + 7, Ui.ACCENT);
         } else if (s instanceof ColorSetting cs) {
-            for (int k = 0; k < BAR_W; k++) {
-                g.fill(barX + k, ry + 6, barX + k + 1, ry + 12, ColorSetting.hsv(k / (float) BAR_W, 0.85f, 1f));
-            }
-            int kx = barX + (int) (cs.get() * (BAR_W - 2));
-            g.fill(kx, ry + 4, kx + 2, ry + 14, 0xFFFFFFFF);
+            Ui.hueBar(g, barX, ry + 8, BAR_W, 5);
+            double kx = barX + cs.get() * BAR_W;
+            Ui.circle(g, kx, ry + 10.5, 5.2, 0xFFFFFFFF);
+            Ui.circle(g, kx, ry + 10.5, 3.2, ColorSetting.hsv(cs.get(), 0.85f, 1f));
         } else if (v instanceof Boolean b) {
-            int tx = c.x() + c.w() - 8 - 24;
-            Render.roundedRect(g, tx, ry + 3, 24, 12, 6, b ? ORANGE : 0xFF3A3A42);
-            Render.roundedRect(g, b ? tx + 13 : tx + 1, ry + 4, 10, 10, 5, 0xFFFFFFFF);
+            float t = step(TOG, s, b ? 1f : 0f, dt, 16f);
+            Ui.toggle(g, c.x() + c.w() - 10 - 26, ry + 4, 26, 14, t);
         } else if (v instanceof Double d) {
-            double f = (d - s.min) / (s.max - s.min);
-            Render.roundedRect(g, barX, ry + 7, BAR_W, 4, 2, 0xFF3A3A42);
-            Render.roundedRect(g, barX, ry + 7, Math.max(4, (int) (BAR_W * f)), 4, 2, ORANGE);
+            double f = Math.max(0, Math.min(1, (d - s.min) / (s.max - s.min)));
+            Ui.rrect(g, barX, ry + 9, BAR_W, 4, 2, Ui.OFF);
+            Ui.rrect(g, barX, ry + 9, Math.max(4, BAR_W * f), 4, 2, Ui.ACCENT);
+            Ui.circle(g, barX + BAR_W * f, ry + 11, 5, 0xFFFFFFFF);
+            String val = (s.max - s.min) >= 50 ? String.format("%.0f", d) : String.format("%.1f", d);
+            int avail = barX - nameX - 8;
+            if (font.width(s.name) + 6 + font.width(val) <= avail) {
+                g.drawString(font, val, barX - 8 - font.width(val), ry + 7, Ui.MUTED);
+            }
         }
     }
 
     @SuppressWarnings("unchecked")
     private void clickSetting(Setting<?> s, double mx, Card c) {
-        int barX = c.x() + c.w() - 8 - BAR_W;
+        double barX = c.x() + c.w() - 10 - BAR_W;
         if (s instanceof ModeSetting ms) {
             ms.next();
         } else if (isBar(s)) {
-            if (mx >= barX - 4) {
+            if (mx >= barX - 6) {
                 dragSetting = s;
                 dragBarX = barX;
                 setFromBar(s, mx, barX);
@@ -148,64 +169,107 @@ public class ClickGui extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-        g.fill(0, 0, width, height, 0x66000000);
+        long now = System.nanoTime();
+        dt = Math.min(0.05f, (now - last) / 1e9f);
+        last = now;
+        appear = Ui.approach(appear, 1f, dt, 12f);
+        if (appear > 0.995f) appear = 1f;
+        scrollAnim += (scroll - scrollAnim) * (1 - Math.exp(-dt * 16));
+        if (Math.abs(scroll - scrollAnim) < 0.3) scrollAnim = scroll;
 
-        float s = scale();
+        for (Module m : ModuleManager.byCategory(selected)) {
+            step(OPEN, m, EXPANDED.contains(m) ? 1f : 0f, dt, 14f);
+        }
+
+        g.fill(0, 0, width, height, ((int) (0x99 * appear)) << 24);
+
+        float s = sc();
         g.pose().pushMatrix();
         g.pose().translate(width / 2f, height / 2f);
         g.pose().scale(s, s);
         g.pose().translate(-width / 2f, -height / 2f);
 
-        int x = px(), y = py();
-        Render.roundedRect(g, x, y, PW, PH, 10, 0xF0111114);
-        Render.roundedRect(g, x, y, SIDE, PH, 10, 0xF00C0C0F);
+        double mx = lx(mouseX), my = ly(mouseY);
+        int x = px(), y = py(), w = pw(), h = ph();
 
-        g.drawString(font, "Rizhik", x + 14, y + 14, ORANGE);
-        g.drawString(font, "Visuals", x + 14 + font.width("Rizhik "), y + 14, 0xFFFFFFFF);
+        Ui.glow(g, x, y, w, h, 14, Ui.ACCENT, 3, 2.2);
+        Ui.panel(g, x, y, w, h, 14, Ui.BG, Ui.BORDER);
+
+        // сайдбар
+        Ui.rrect(g, x + 6, y + 6, SIDE - 8, h - 12, 10, Ui.SIDEBAR);
+        g.drawString(font, "Rizhik", x + 18, y + 18, Ui.ACCENT);
+        g.drawString(font, "Visuals", x + 18 + font.width("Rizhik "), y + 18, Ui.TEXT);
 
         Category[] cats = Category.values();
+        float tgt = sideY(selected.ordinal());
+        pillY = pillY < 0 ? tgt : Ui.approach(pillY, tgt, dt, 18f);
+        Ui.rrect(g, x + 12, pillY, SIDE - 20, 22, 8, Ui.alpha(Ui.ACCENT, 0.22));
+        Ui.rrect(g, x + 12, pillY + 5, 2.4, 12, 1.2, Ui.ACCENT);
         for (int i = 0; i < cats.length; i++) {
-            int sy = sideY(i);
             boolean active = cats[i] == selected;
-            if (active) Render.roundedRect(g, x + 8, sy, SIDE - 16, 20, 6, ORANGE);
-            g.drawString(font, cats[i].title, x + 18, sy + 6, active ? 0xFFFFFFFF : 0xFF8A8A93);
+            int sy = sideY(i);
+            g.drawString(font, cats[i].title, x + 22, sy + 7, active ? Ui.TEXT : Ui.MUTED);
+            String cnt = String.valueOf(ModuleManager.byCategory(cats[i]).size());
+            g.drawString(font, cnt, x + SIDE - 20 - font.width(cnt), sy + 7, Ui.MUTED);
         }
+        long on = ModuleManager.all().stream().filter(Module::isEnabled).count();
+        Ui.circle(g, x + 21, y + h - 19, 3, Ui.ACCENT);
+        g.drawString(font, on + " активно", x + 30, y + h - 23, Ui.MUTED);
 
-        g.drawString(font, selected.title, x + SIDE + PAD, y + 14, 0xFFFFFFFF);
+        // заголовок
+        g.drawString(font, selected.title, x + SIDE + PAD, y + 15, Ui.TEXT);
+        String right = ModuleManager.byCategory(selected).size() + " модулей";
+        g.drawString(font, right, x + w - 14 - font.width(right), y + 15, Ui.MUTED);
 
-        int viewTop = y + HEAD, viewBottom = y + PH - 4;
-        g.enableScissor(x + SIDE, viewTop, x + PW, viewBottom);
+        int viewTop = y + HEAD, viewBottom = y + h - 8;
+        g.enableScissor(x + SIDE, viewTop, x + w - 6, viewBottom);
         for (Card c : layout()) {
             if (c.y() + c.h() < viewTop || c.y() > viewBottom) continue;
             Module m = c.module();
-            boolean open = EXPANDED.contains(m);
+            boolean hover = mx >= c.x() && mx <= c.x() + c.w() && my >= Math.max(c.y(), viewTop)
+                    && my <= Math.min(c.y() + c.h(), viewBottom);
+            float hv = step(HOV, m, hover ? 1f : 0f, dt, 16f);
+            float tg = step(TOG, m, m.isEnabled() ? 1f : 0f, dt, 14f);
+            float op = get(OPEN, m, 0f);
 
-            Render.roundedRect(g, c.x(), c.y(), c.w(), c.h(), 6, 0xFF1A1A1F);
-            g.drawString(font, m.name, c.x() + 8, c.y() + 8, 0xFFFFFFFF);
+            int bg = Ui.mix(Ui.CARD, Ui.CARD_HOVER, hv);
+            double bw = Ui.px(1.4);
+            Ui.rrect(g, c.x(), c.y(), c.w(), c.h(), 9, Ui.mix(bg, Ui.ACCENT, 0.55 * tg));
+            Ui.rrect(g, c.x() + bw, c.y() + bw, c.w() - 2 * bw, c.h() - 2 * bw, 9 - bw, bg);
 
-            if (open) {
-                int ly = c.y() + 22;
-                for (var line : font.split(Component.literal(m.description), c.w() - 16)) {
-                    g.drawString(font, line, c.x() + 8, ly, 0xFF8A8A93);
+            g.enableScissor(c.x(), Math.max(c.y(), viewTop), c.x() + c.w(), Math.min(c.y() + c.h(), viewBottom));
+            g.drawString(font, m.name, c.x() + 10, c.y() + 10, Ui.TEXT);
+
+            if (op > 0.3f) {
+                int ly = c.y() + 24;
+                for (var line : font.split(Component.literal(m.description), c.w() - 20)) {
+                    g.drawString(font, line, c.x() + 10, ly, Ui.MUTED);
                     ly += 10;
                 }
+            } else {
+                g.drawString(font, font.plainSubstrByWidth(m.description, c.w() - 70),
+                        c.x() + 10, c.y() + 25, Ui.MUTED);
+            }
+            if (op > 0.02f) {
                 int sy0 = settingsTop(c);
                 for (int k = 0; k < m.settings.size(); k++) {
                     drawSetting(g, m.settings.get(k), c, sy0 + k * SET_H);
                 }
-            } else {
-                g.drawString(font, font.plainSubstrByWidth(m.description, c.w() - 60),
-                        c.x() + 8, c.y() + 22, 0xFF8A8A93);
             }
 
-            int tx = c.x() + c.w() - 52, ty = c.y() + 13;
-            Render.roundedRect(g, tx, ty, 24, 12, 6, m.isEnabled() ? ORANGE : 0xFF3A3A42);
-            int kx = m.isEnabled() ? tx + 13 : tx + 1;
-            Render.roundedRect(g, kx, ty + 1, 10, 10, 5, 0xFFFFFFFF);
-
-            chevron(g, c.x() + c.w() - 14, c.y() + 17, open, 0xFF8A8A93);
+            Ui.toggle(g, c.x() + c.w() - 50, c.y() + 10, 28, 15, tg);
+            Ui.chevron(g, c.x() + c.w() - 14, c.y() + 17.5, 3.5, op, Ui.MUTED);
+            g.disableScissor();
         }
         g.disableScissor();
+
+        double max = maxScroll();
+        if (max > 0) {
+            double track = viewBottom - viewTop - 4;
+            double thumb = Math.max(20, track * track / (track + max));
+            double ty = viewTop + 2 + (scrollAnim / max) * (track - thumb);
+            Ui.rrect(g, x + w - 8, ty, 2.4, thumb, 1.2, Ui.alpha(Ui.ACCENT, 0.55));
+        }
 
         g.pose().popMatrix();
         super.render(g, mouseX, mouseY, delta);
@@ -213,39 +277,42 @@ public class ClickGui extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
-            double mx = lx(event.x()), my = ly(event.y());
-            int x = px(), y = py();
+        double mx = lx(event.x()), my = ly(event.y());
+        int x = px(), y = py(), w = pw(), h = ph();
 
+        if (event.button() == 0) {
             Category[] cats = Category.values();
             for (int i = 0; i < cats.length; i++) {
                 int sy = sideY(i);
-                if (mx >= x + 8 && mx <= x + SIDE - 8 && my >= sy && my <= sy + 20) {
+                if (mx >= x + 10 && mx <= x + SIDE - 4 && my >= sy && my <= sy + 22) {
                     selected = cats[i];
                     scroll = 0;
+                    scrollAnim = 0;
                     return true;
                 }
             }
+        }
 
-            if (my >= y + HEAD && my <= y + PH - 4) {
-                for (Card c : layout()) {
-                    if (mx < c.x() || mx > c.x() + c.w() || my < c.y() || my > c.y() + c.h()) continue;
-                    if (my <= c.y() + CARD_H) {
-                        if (mx >= c.x() + c.w() - 28) {
-                            if (!EXPANDED.remove(c.module())) EXPANDED.add(c.module());
-                        } else {
-                            c.module().toggle();
-                        }
-                    } else if (EXPANDED.contains(c.module())) {
-                        int sy0 = settingsTop(c);
-                        List<Setting<?>> list = c.module().settings;
-                        for (int k = 0; k < list.size(); k++) {
-                            int ry = sy0 + k * SET_H;
-                            if (my >= ry && my <= ry + SET_H) clickSetting(list.get(k), mx, c);
-                        }
+        if (mx >= x + SIDE && my >= y + HEAD && my <= y + h - 8) {
+            for (Card c : layout()) {
+                if (mx < c.x() || mx > c.x() + c.w() || my < c.y() || my > c.y() + c.h()) continue;
+                Module m = c.module();
+                if (my <= c.y() + CARD_H) {
+                    boolean chevron = mx >= c.x() + c.w() - 26;
+                    if (event.button() == 1 || (event.button() == 0 && chevron)) {
+                        if (!EXPANDED.remove(m)) EXPANDED.add(m);
+                    } else if (event.button() == 0) {
+                        m.toggle();
                     }
-                    return true;
+                } else if (event.button() == 0 && EXPANDED.contains(m)) {
+                    int sy0 = settingsTop(c);
+                    List<Setting<?>> list = m.settings;
+                    for (int k = 0; k < list.size(); k++) {
+                        int ry = sy0 + k * SET_H;
+                        if (my >= ry && my <= ry + SET_H) clickSetting(list.get(k), mx, c);
+                    }
                 }
+                return true;
             }
         }
         return super.mouseClicked(event, doubleClick);
@@ -268,7 +335,7 @@ public class ClickGui extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(maxScroll(), scroll - scrollY * 14));
+        scroll = Math.max(0, Math.min(maxScroll(), scroll - scrollY * 22));
         return true;
     }
 
