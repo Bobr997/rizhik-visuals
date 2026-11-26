@@ -19,6 +19,7 @@ public class ModuleList {
         ModuleManager.register(new CustomHand());
         ModuleManager.register(new ChinaHat());
         ModuleManager.register(new KillEffect());
+        ModuleManager.register(new HitEffect());
         ModuleManager.register(new Trails());
         ModuleManager.register(new JumpCircles());
         ModuleManager.register(new Optimization());
