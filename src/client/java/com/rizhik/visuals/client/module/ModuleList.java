@@ -12,10 +12,12 @@ public class ModuleList {
         ModuleManager.register(new Markers());
         ModuleManager.register(new ClickPearl());
         ModuleManager.register(new AutoCart());
+        ModuleManager.register(new AutoTotem());
         ModuleManager.register(new HitSounds());
         ModuleManager.register(new Fullbright());
         ModuleManager.register(new CustomHand());
         ModuleManager.register(new ChinaHat());
+        ModuleManager.register(new KillEffect());
         ModuleManager.register(new Trails());
         ModuleManager.register(new JumpCircles());
         ModuleManager.register(new Optimization());
